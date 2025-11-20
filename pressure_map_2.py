@@ -24,6 +24,7 @@ SIGMA_X = 0.8 / COLS
 SIGMA_Y = 0.8 / ROWS
 
 # channel labels (was using Arduino channels)
+# multiple threads
 CHANNELS = [f"A{i}" for i in range(ROWS * COLS)]
 latest = defaultdict(lambda: None)
 lock = threading.Lock()
@@ -73,7 +74,7 @@ def serial_reader():
 t = threading.Thread(target=serial_reader, daemon=True)
 t.start()
 
-# helper functions
+# helper functions for blur
 def gaussian1d(sigma_px, radius=None):
     if sigma_px <= 0:
         return np.array([1.0])
@@ -92,6 +93,8 @@ def gaussian_blur(arr, sigma_px=3):
     arr = np.apply_along_axis(lambda m: np.convolve(m, k, mode='same'), axis=0, arr=arr)
     return arr
 
+# number is betw 300-400
+# normalize value betw ymin and ymax
 def adc_to_intensity(v):
     if v is None:
         return 0.0   # show white if no reading
@@ -108,6 +111,7 @@ def intensity_to_rgb(I):
     return np.stack([R, G, B], axis=-1)
 
 # normalize -1 to 1
+# TODO: change this so origin is bottom left corner
 x = np.linspace(-1, 1, GRID_RES)
 y = np.linspace(-1, 1, GRID_RES)
 X, Y = np.meshgrid(x, y)
