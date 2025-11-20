@@ -7,7 +7,7 @@ from matplotlib.patches import PathPatch
 import os
 import matplotlib.image as mpimg
 
-HAND_IMG_FILE = "/Users/jennakazim/Desktop/VAK/PressureMapping/handOutline.png"
+HAND_IMG_FILE = "handOutline.png"
 # glove shape
 # fingers: 4 vertical x 20 horizontal = 80 nodes each
 # palm: 16 vertival x 32 horizontal = 512 nodes total
@@ -15,9 +15,7 @@ HAND_IMG_FILE = "/Users/jennakazim/Desktop/VAK/PressureMapping/handOutline.png"
 
 # =========================== CONFIG ===========================
 
-CSV_FILE = "/Users/jennakazim/Desktop/VAK/PressureMapping/09282025_singleconfig8_pressure_capacitance_CH0_CH4.csv"
-# LAYOUT_FILE = "/Users/jennakazim/Desktop/VAK/PressureMapping/glove.csv"
-HAND_OUTLINE_FILE = "/Users/jennakazim/Desktop/VAK/PressureMapping/handOutlineCoordinates_reduced.csv"
+CSV_FILE = "09282025_singleconfig8_pressure_capacitance_CH0_CH4.csv"
 
 GRID_RES = 300
 
@@ -229,20 +227,6 @@ X, Y = np.meshgrid(x_grid, y_grid)
 
 # ===================== HAND OUTLINE & MASK ====================
 
-hand_outline = pd.read_csv(HAND_OUTLINE_FILE, comment="#")
-
-poly_x = hand_outline["x_norm"].values
-poly_y = hand_outline["y_norm"].values
-polygon = np.vstack([poly_x, poly_y]).T
-
-# Path for outline and inside/outside tests
-hand_path = Path(polygon)
-
-# Precompute mask on the grid: True inside the hand, False outside
-points = np.vstack([X.ravel(), Y.ravel()]).T
-inside_flat = hand_path.contains_points(points)
-hand_mask = inside_flat.reshape(X.shape)
-
 def field_from_matrix(A_flat):
     """
     A_flat: shape (n_channels,), current frame's readings (16 virtual intersections).
@@ -267,8 +251,6 @@ def field_from_matrix(A_flat):
         F += I * g
 
     F = gaussian_blur(np.clip(F, 0, 1), sigma_px=HEAT_BLUR)
-    # Optionally mask outside the hand:
-    # F = F * hand_mask
 
     return F
 
