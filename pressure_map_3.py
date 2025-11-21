@@ -113,7 +113,8 @@ img = ax.imshow(np.ones((GRID_RES, GRID_RES, 3)),
 labels = []
 for i, (cx, cy) in enumerate(sensor_coords):
     r, c = divmod(i, COLS)
-    ax.text(cx, cy + 0.08, f"A{r}{c}",
+    col_label = 4 + c  # label columns as 4..7
+    ax.text(cx, cy + 0.08, f"R{r} C{col_label}",
             ha='center', va='center', fontsize=10, weight='bold')
     val = ax.text(cx, cy - 0.08, "--",
                   ha='center', va='center', fontsize=9)

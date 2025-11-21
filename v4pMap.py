@@ -16,7 +16,6 @@ HAND_IMG_FILE = "handOutline.png"
 # =========================== CONFIG ===========================
 
 CSV_FILE = "09282025_singleconfig8_pressure_capacitance_CH0_CH4.csv"
-
 GRID_RES = 300
 
 # ====================== LOAD CSV ===============================
@@ -111,21 +110,29 @@ def build_hand_layout():
     x_coords = np.array(x_list, dtype=float)
     y_coords = np.array(y_list, dtype=float)
 
-    # --- Choose a 4x4 subgrid in the PALM as the "mockup" patch ---
-    # Place the 4x4 patch in the middle horizontally and near the bottom
-    # of the palm vertically (close to the wrist).
-    start_col = (PALM_V - 4) // 2
-    mockup_cols = np.arange(start_col, start_col + 4, dtype=int)
+    # --- Choose a 4x4 subgrid located at the tip of one finger ---
+    # We'll place the 4x4 labeled mockup on the tip of the first finger
+    # (index finger). Finger nodes are appended after the palm nodes.
+    palm_count = PALM_V * PALM_H
 
-    # choose rows slightly above the very bottom rows to avoid edge artifacts
-    start_row = 2
-    mockup_rows = np.arange(start_row, start_row + 4, dtype=int)
+    # pick which finger to use for the mockup (0=index, 1=middle, ...)
+    target_finger = 0
+
+    # within the finger grid, rows increase from base->tip, so choose the
+    # topmost 4 rows to be the 4×4 patch (i.e., near the fingertip)
+    finger_row_start = max(0, FINGER_H - 4)
+    finger_row_indices = np.arange(finger_row_start, finger_row_start + 4, dtype=int)
 
     mockup_indices = []
-    for r in mockup_rows:
-        for c in mockup_cols:
-            idx = r * PALM_V + c  # palm nodes are stored row-major at the beginning
+    for r in finger_row_indices:
+        for c in range(FINGER_V):
+            # index within that finger: r * FINGER_V + c
+            idx_within_finger = r * FINGER_V + c
+            # global node index = palm_count + finger_offset + idx_within_finger
+            finger_offset = target_finger * (FINGER_H * FINGER_V)
+            idx = palm_count + finger_offset + idx_within_finger
             mockup_indices.append(idx)
+
     mockup_indices = np.array(mockup_indices, dtype=int)
 
 
@@ -187,7 +194,7 @@ def per_node_intensity(A_flat):
 span_x = x_coords.max() - x_coords.min()
 span_y = y_coords.max() - y_coords.min()
 # Controls how wide each sensor's gaussian bump is (fraction of span)
-SPREAD_FACTOR = 0.025  # smaller blobs
+SPREAD_FACTOR = 0.02  # smaller blobs
 SIGMA_X = SPREAD_FACTOR * span_x
 SIGMA_Y = SPREAD_FACTOR * span_y
 
