@@ -58,10 +58,34 @@ N_FINGERS = 4
 FINGER_NAMES = ["index", "middle", "ring", "pinky"]
 
 
+## HELPER FUNCTION TO MAKE ROWS FOR THE PALM
+def add_palm_row(x_list, y_list, regions, *, y, x_start, x_end, n_nodes, region="palm"):
+    """
+    Append one horizontal row of palm nodes.
+
+    Args:
+      x_list, y_list, regions: lists you are accumulating into
+      y: the y-value for the whole row
+      x_start, x_end: row spans from x_start -> x_end
+      n_nodes: how many nodes to place along that span
+      region: region label to append (default "palm")
+    """
+    if n_nodes <= 0:
+        return
+    if n_nodes == 1:
+        xs = np.array([(x_start + x_end) / 2.0], dtype=float)
+    else:
+        xs = np.linspace(x_start, x_end, n_nodes, dtype=float)
+
+    x_list.extend(xs.tolist())
+    y_list.extend([float(y)] * int(n_nodes))
+    regions.extend([region] * int(n_nodes))
+
+
 def build_hand_layout():
     """
     Generate a dense glove layout:
-      - Palm: 16 x 32 intersections
+      - Palm: 16 x 32 intersections = 512
       - Fingers: 4 fingers * (4 x 20) intersections each
     Returns:
       x_coords, y_coords: arrays of all node positions (normalized)
@@ -73,18 +97,82 @@ def build_hand_layout():
     y_list = []
     regions = []
 
-    # --- Palm grid ---
-    # Palm spans most of the width: [-0.7, 0.7]
-    palm_x = np.linspace(-0.5, 0.5, PALM_V)
-    # Palm height: from wrist-ish to base of fingers: [-0.7, 0]
-    palm_y = np.linspace(-0.7, 0, PALM_H)
+    # # --- Palm grid (constrained to a pentagon) ---
+    # # Palm bounding grid (we'll filter these points to the pentagon)
+    # palm_x = np.linspace(-0.5, 0.5, PALM_V)
+    # palm_y = np.linspace(-0.7, 0.0, PALM_H)
 
-    # Keep track of palm node indices: 0 .. (PALM_V*PALM_H - 1)
-    for j in range(PALM_H):        # y index
-        for i in range(PALM_V):    # x index
-            x_list.append(palm_x[i])
-            y_list.append(palm_y[j])
-            regions.append("palm")
+    # # Define a simple pentagon approximating a palm shape.
+    # # Ordered counter-clockwise around the shape.
+    # palm_poly = [
+    #     (-0.5, 0.0),   # left-most at finger base
+    #     (0.5, 0.0),    # right-most at finger base
+    #     (0.6, -0.5),  # lower-right shoulder
+    #     (0.0, -0.7),   # wrist tip
+    #     (-0.4, -0.4)  # lower-left shoulder
+    # ]
+    # palm_path = Path(palm_poly)
+
+    # # Keep track of palm node indices: include only grid points inside pentagon
+    # for j in range(PALM_H):        # y index
+    #     for i in range(PALM_V):    # x index
+    #         px = palm_x[i]
+    #         py = palm_y[j]
+    #         if palm_path.contains_point((px, py)):
+    #             x_list.append(px)
+    #             y_list.append(py)
+    #             regions.append("palm")
+
+
+    # (y, x_start, x_end, n_nodes)
+    # multiplier so y axis shrinks a little
+    k = 0.8
+    palm_rows = [
+        # bottom
+        (-1.2*k, -0.3*k,  0.4*k, 14),
+        (-1.1*k, -0.5*k,  0.422*k, 18),
+        (-1*k, -0.567*k,  0.444*k, 19),
+        (-0.9*k, -0.63*k,  0.467*k, 20),
+        (-0.8*k, -0.7*k,  0.489*k, 22),
+        (-0.7*k, -0.66*k,  0.511*k, 22),
+        (-0.6*k, -0.625*k,  0.533*k, 22),
+        (-0.5*k, -0.58*k,  0.556*k, 22),
+        (-0.4*k, -0.52*k,  0.5778*k, 22),
+        (-0.3*k, -0.5*k,  0.6*k, 22),
+        (-0.2*k, -0.4751*k,  0.53*k, 20),
+        (-0.1*k, -0.44*k,  0.467*k, 19),
+        (0.00*k, -0.40*k,  0.40*k, 18)
+        # top, finger base
+    ]
+    
+    '''
+    palm_rows = [
+        (-0.70, -0.05,  0.05,  6),   # wrist tip (narrow)
+        (-0.65, -0.12,  0.12, 10),
+        (-0.60, -0.18,  0.18, 12),
+        (-0.55, -0.25,  0.25, 14),
+        (-0.50, -0.33,  0.33, 16),
+        (-0.45, -0.40,  0.40, 18),
+        (-0.40, -0.46,  0.46, 20),
+        (-0.35, -0.50,  0.50, 22),
+        (-0.30, -0.52,  0.52, 22),
+        (-0.25, -0.50,  0.50, 22),
+        (-0.20, -0.48,  0.48, 22),
+        (-0.15, -0.46,  0.46, 22),
+        (-0.10, -0.44,  0.44, 22),
+        (-0.05, -0.42,  0.42, 22),
+        ( 0.00, -0.40,  0.40, 22),  # finger base (wide)
+    ]'''
+
+    for (y, x1, x2, n) in palm_rows:
+        add_palm_row(x_list, y_list, regions, y=y, x_start=x1, x_end=x2, n_nodes=n, region="palm")
+
+    x_coords = np.array(x_list, dtype=float)
+    y_coords = np.array(y_list, dtype=float)
+
+    # If you still want a mockup index selection, do it after you append fingers
+    mockup_indices = np.array([], dtype=int)
+
 
     # --- Fingers ---
     # Fingers start just above the palm and go towards the top.
@@ -113,7 +201,8 @@ def build_hand_layout():
     # --- Choose a 4x4 subgrid located at the tip of one finger ---
     # We'll place the 4x4 labeled mockup on the tip of the first finger
     # (index finger). Finger nodes are appended after the palm nodes.
-    palm_count = PALM_V * PALM_H
+    # actual number of palm nodes appended so far
+    palm_count = sum(1 for r in regions if r == "palm")
 
     # pick which finger to use for the mockup (0=index, 1=middle, ...)
     target_finger = 0
@@ -136,6 +225,7 @@ def build_hand_layout():
     mockup_indices = np.array(mockup_indices, dtype=int)
 
 
+    # return x_coords, y_coords, regions, mockup_indices, palm_poly
     return x_coords, y_coords, regions, mockup_indices
 
 
